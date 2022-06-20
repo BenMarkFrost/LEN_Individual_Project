@@ -18,9 +18,10 @@ class Scorer:
         
 
     def score(self):
-        x_train = torch.tensor(self.data.to_numpy(), dtype=torch.float)
-        y_train = torch.tensor(self.target.to_numpy(), dtype=torch.long)
+        x_train = torch.tensor(self.data, dtype=torch.float)
+        y_train = torch.tensor(self.target, dtype=torch.long)
 
+        print(x_train)
         print(y_train)
 
         layers = [
@@ -28,7 +29,7 @@ class Scorer:
             torch.nn.LeakyReLU(),
             torch.nn.Linear(10, 4),
             torch.nn.LeakyReLU(),
-            torch.nn.Linear(4, 4),
+            torch.nn.Linear(4, 1),
         ]
         model = torch.nn.Sequential(*layers)
 
@@ -39,11 +40,22 @@ class Scorer:
         for _ in range(1001):
             optimizer.zero_grad()
             y_pred = model(x_train).squeeze(-1)
-            # print((y_pred))
+            # print(y_pred, y_train)
             loss = loss_form(y_pred, y_train)
             loss = loss_form(y_pred, y_train) + 0.00001 * te.nn.functional.entropy_logic_loss(model)
             print(loss)
             loss.backward()
             optimizer.step()
 
-        print(y_pred, y_train)
+        y1h = one_hot(y_train)
+
+        explanation, _ = entropy.explain_class(model, x_train, y1h, x_train, y1h, target_class=1)
+
+        # print(model(x_train[0]))
+
+        print(explanation)
+
+        accuracy, preds = test_explanation(explanation, x_train, y1h, target_class=1)
+        explanation_complexity = complexity(explanation)
+
+        print(explanation_complexity, accuracy, preds)
