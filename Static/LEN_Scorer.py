@@ -1,5 +1,6 @@
 import pandas as pd
 import torch
+from torch.nn.utils import clip_grad_norm_
 from torch.nn.functional import one_hot
 import torch_explain as te
 from torch_explain.nn.functional import l1_loss
@@ -21,8 +22,8 @@ class Scorer:
         x_train = torch.tensor(self.data, dtype=torch.float)
         y_train = torch.tensor(self.target, dtype=torch.long)
 
-        print(x_train)
-        print(y_train)
+        # print(x_train)
+        # print(y_train)
 
         layers = [
             te.nn.EntropyLinear(x_train.shape[1], 10, n_classes=4),
@@ -45,6 +46,9 @@ class Scorer:
             loss = loss_form(y_pred, y_train) + 0.00001 * te.nn.functional.entropy_logic_loss(model)
             print(loss)
             loss.backward()
+
+            clip_grad_norm_(model.parameters(), 5)
+
             optimizer.step()
 
         y1h = one_hot(y_train)
