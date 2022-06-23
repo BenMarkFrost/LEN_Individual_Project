@@ -63,8 +63,6 @@ class Scorer:
 
     def explain(self, class_target):
 
-        print(class_target)
-
         if self.x_train == None or self.y_train == None or self.model == None:
             raise Exception("Model not trained")
 
@@ -77,8 +75,6 @@ class Scorer:
         explanation, _ = entropy.explain_class(self.model.cpu(), self.x_train.cpu(), y1h, self.x_train.cpu(), y1h, target_class=class_target)
 
         # print(model(x_train[0]))
-
-        print(explanation)
 
         accuracy, preds = test_explanation(explanation, self.x_train, y1h, target_class=class_target)
         explanation_complexity = complexity(explanation)
