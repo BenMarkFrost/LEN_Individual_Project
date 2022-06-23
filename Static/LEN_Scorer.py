@@ -63,6 +63,8 @@ class Scorer:
 
     def explain(self, class_target):
 
+        print("Explaining class: ", class_target)
+
         if self.x_train == None or self.y_train == None or self.model == None:
             raise Exception("Model not trained")
 
