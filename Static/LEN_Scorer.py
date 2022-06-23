@@ -16,11 +16,15 @@ class Scorer:
     def __init__(self, data, target):
         self.data = data
         self.target = target
+        self.cuda = torch.device('cuda')
         
 
-    def score(self):
-        x_train = torch.tensor(self.data, dtype=torch.float)
-        y_train = torch.tensor(self.target, dtype=torch.long)
+    def train(self):
+        x_train = torch.tensor(self.data, dtype=torch.float, device = self.cuda)
+        y_train = torch.tensor(self.target, dtype=torch.long, device = self.cuda)
+
+        self.x_train = x_train
+        self.y_train = y_train
 
         # print(x_train)
         # print(y_train)
@@ -32,15 +36,18 @@ class Scorer:
             torch.nn.LeakyReLU(),
             torch.nn.Linear(4, 1),
         ]
+
+
         model = torch.nn.Sequential(*layers)
 
 
         optimizer = torch.optim.AdamW(model.parameters(), lr=0.01)
         loss_form = torch.nn.CrossEntropyLoss()
+        model.to(device=self.cuda)
         model.train()
         for _ in range(1001):
             optimizer.zero_grad()
-            y_pred = model(x_train).squeeze(-1)
+            y_pred = model(x_train.to(device=self.cuda)).squeeze(-1)
             # print(y_pred, y_train)
             loss = loss_form(y_pred, y_train)
             loss = loss_form(y_pred, y_train) + 0.00001 * te.nn.functional.entropy_logic_loss(model)
@@ -51,15 +58,39 @@ class Scorer:
 
             optimizer.step()
 
-        y1h = one_hot(y_train)
+        self.model = model
 
-        explanation, _ = entropy.explain_class(model, x_train, y1h, x_train, y1h, target_class=1)
+
+    def explain(self, class_target):
+
+        print(class_target)
+
+        if self.x_train == None or self.y_train == None or self.model == None:
+            raise Exception("Model not trained")
+
+        self.x_train.cpu()
+        self.y_train.cpu()
+        self.model.cpu()
+
+        y1h = one_hot(self.y_train.cpu())
+
+        explanation, _ = entropy.explain_class(self.model.cpu(), self.x_train.cpu(), y1h, self.x_train.cpu(), y1h, target_class=class_target)
 
         # print(model(x_train[0]))
 
         print(explanation)
 
-        accuracy, preds = test_explanation(explanation, x_train, y1h, target_class=1)
+        accuracy, preds = test_explanation(explanation, self.x_train, y1h, target_class=class_target)
         explanation_complexity = complexity(explanation)
 
-        print(explanation_complexity, accuracy, preds)
+        return [explanation, explanation_complexity, accuracy, preds]
+
+
+
+    def predict(self, x):
+        if not self.x_train or not self.y_train or not self.model:
+            raise Exception("Model not trained")
+
+        x = torch.tensor(x, dtype=torch.float)
+        y_pred = self.model(x).squeeze(-1)
+        return y_pred
