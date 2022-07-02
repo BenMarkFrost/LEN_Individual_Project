@@ -13,6 +13,8 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.feature_selection import mutual_info_classif, chi2
+from sklearn.linear_model import LassoCV
 import os
 import time
 
@@ -101,6 +103,7 @@ class Scorer:
         skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
 
         results_list = []
+        feature_selection = []
         explanations = {i: [] for i in range(n_classes)}
 
         x = x_train
@@ -124,10 +127,8 @@ class Scorer:
 
 
             print(f'Split [{split + 1}/{n_splits}]')
-            x_trainval = torch.FloatTensor(x[trainval_index])
-            x_test = torch.FloatTensor(x[test_index])
-            y_trainval = torch.FloatTensor(y[trainval_index])
-            y_test = torch.FloatTensor(y[test_index])
+            x_trainval, x_test = torch.FloatTensor(x[trainval_index]), torch.FloatTensor(x[test_index])
+            y_trainval, y_test = torch.FloatTensor(y[trainval_index]), torch.FloatTensor(y[test_index])
             x_train, x_val, y_train, y_val = train_test_split(x_trainval, y_trainval, test_size=0.2, random_state=42)
             print(f'{len(y_train)}/{len(y_val)}/{len(y_test)}')
 
@@ -146,7 +147,7 @@ class Scorer:
                             explainer_hidden=[20], temperature=0.7)
 
             start = time.time()
-            trainer.fit(model, train_loader.to(torch.float), val_loader.to(torch.float))
+            trainer.fit(model, train_loader, val_loader)
             print(f"Gamma: {model.model[0].concept_mask}")
             model.freeze()
             model_results = trainer.test(model, test_dataloaders=test_loader)
@@ -156,9 +157,48 @@ class Scorer:
             results, f = model.explain_class(val_loader, train_loader, test_loader,
                                             topk_explanations=10)
             end = time.time() - start
+            results['model_accuracy'] = model_results[0]['test_acc']
+            results['extraction_time'] = end
 
-            print(f"Time: {end}")
-            print(results, f)
+            results_list.append(results)
+            extracted_concepts = []
+            all_concepts = model.model[0].concept_mask[0] > 0.5
+            common_concepts = model.model[0].concept_mask[0] > 0.5
+            for j in range(n_classes):
+                n_used_concepts = sum(model.model[0].concept_mask[j] > 0.5)
+                print(f"Extracted concepts: {n_used_concepts}")
+                print(f"Explanation: {f[j]['explanation']}")
+                print(f"Explanation accuracy: {f[j]['explanation_accuracy']}")
+                explanations[j].append(f[j]['explanation'])
+                extracted_concepts.append(n_used_concepts)
+                all_concepts += model.model[0].concept_mask[j] > 0.5
+                common_concepts *= model.model[0].concept_mask[j] > 0.5
+
+            results['extracted_concepts'] = np.mean(extracted_concepts)
+            results['common_concepts_ratio'] = sum(common_concepts) / sum(all_concepts)
+
+            break
+
+            # compare against standard feature selection
+            # i_mutual_info = mutual_info_classif(x_trainval, y_trainval[:, 1])
+            # i_chi2 = chi2(x_trainval, y_trainval[:, 1])[0]
+            # i_chi2[np.isnan(i_chi2)] = 0
+            # lasso = LassoCV(cv=5, random_state=0).fit(x_trainval, y_trainval[:, 1])
+            # i_lasso = np.abs(lasso.coef_)
+            # i_mu = model.model[0].concept_mask[1]
+            # df = pd.DataFrame(np.hstack([
+            #     i_mu.numpy(),
+            #     i_mutual_info / np.max(i_mutual_info),
+            #     i_chi2 / np.max(i_chi2),
+            #     i_lasso / np.max(i_lasso),
+            # ]).T, columns=['feature importance'])
+            # df['method'] = 'explainer'
+            # df.iloc[90:, 1] = 'MI'
+            # df.iloc[180:, 1] = 'CHI2'
+            # df.iloc[270:, 1] = 'Lasso'
+            # df['feature'] = np.hstack([np.arange(0, 90)] * 4)
+            # feature_selection.append(df)
+
 
 
     def explain(self, class_target):
