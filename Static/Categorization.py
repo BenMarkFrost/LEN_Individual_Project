@@ -12,6 +12,22 @@ class Categorizer:
     def __init__(self, data):
         self.data = data
         self.categorizationTypes = {}
+        self.mappedTypes = {}
+
+    def map_types(self, mapping):
+
+        for type in self.categorizationTypes:
+
+            df = self.categorizationTypes[type]
+
+            for col in df.columns:
+
+                df[col] = df[col].map(mapping)
+
+            self.mappedTypes[type] = pd.get_dummies(df)
+
+        return self.mappedTypes
+
 
     def reorder(self, data, bins):
 
@@ -65,11 +81,13 @@ class Categorizer:
 
         return agglomerativeDF
     
-    def display(self):
+    def display(self, num=None):
 
         for type in self.categorizationTypes:
 
             df = self.categorizationTypes[type]
+
+            max = num if num is not None else len(df.columns)
 
             if len(self.data.columns) < 6:
 
@@ -77,7 +95,8 @@ class Categorizer:
 
                 fig.suptitle(f"{type}")
 
-                for idx, col in enumerate(self.data.columns):
+
+                for idx, col in enumerate(list(self.data.columns)[:max]):
 
                     score = silhouette_score(np.asarray(self.data[col]).reshape(-1,1), df[col])
 
@@ -92,7 +111,7 @@ class Categorizer:
 
             else:
 
-                for idx, col in enumerate(self.data.columns):
+                for idx, col in enumerate(list(self.data.columns)[:max]):
 
                     fig = plt.figure()
 

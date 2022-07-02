@@ -2,3 +2,5 @@ LEN_Test/data
 __pycache__/
 Static/__pycache__/LEN_Scorer.cpython-39.pyc
 LEN_Test/pytorch_explain
+Static/results/
+results/
