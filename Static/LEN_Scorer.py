@@ -15,11 +15,17 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.feature_selection import mutual_info_classif, chi2
 from sklearn.linear_model import LassoCV
+# import DecisionTreeClassifier from sklearn.tree
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from torch_explain.logic.metrics import formula_consistency
 import os
+from matplotlib import pyplot as plt
+import seaborn as sns
 import time
 
 
-""" The model code from this file is based on the following:
+""" The model code from this file is adapted from the following:
 https://github.com/pietrobarbiero/pytorch_explain/blob/master/experiments/elens/mnist.py
 
 Credit to Pietro Barbiero for the original code."""
@@ -28,18 +34,19 @@ class Scorer:
 
     """Runs categorised static data on a standard LEN network, and outputs the result."""
 
-    def __init__(self, data, target):
+    def __init__(self, data, target, concept_names):
         self.data = data
         self.target = target
         self.cuda = torch.device('cuda')
+        self.concept_names = concept_names
         
 
     def train(self):
-        x_train = torch.tensor(self.data, dtype=torch.float, device = self.cuda)
-        y_train = torch.tensor(self.target, dtype=torch.long, device = self.cuda)
+        # x_train = torch.tensor(self.data, dtype=torch.float, device = self.cuda)
+        # y_train = torch.tensor(self.target, dtype=torch.long, device = self.cuda)
 
-        self.x_train = x_train
-        self.y_train = y_train
+        x_train = self.data
+        y_train = self.target
 
         # print(x_train)
         # print(y_train)
@@ -88,7 +95,10 @@ class Scorer:
         
 
         n_concepts = next(iter(train_loader))[0].shape[1]
+        self.n_concepts = n_concepts
+
         n_classes = len(np.unique(self.target))
+        self.n_classes = n_classes
 
         print("Num concepts: {}".format(n_concepts))
         print("Num classes: {}".format(n_classes))
@@ -100,7 +110,11 @@ class Scorer:
 
         n_splits = 5
 
+        self.n_splits = n_splits
+
         skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+        self.skf = skf
 
         results_list = []
         feature_selection = []
@@ -109,18 +123,18 @@ class Scorer:
         x = x_train
         y = y_train
 
-        for split, (trainval_index, test_index) in enumerate(skf.split(x.cpu().detach(),
-                                                               y.cpu().detach())):
+        for split, (trainval_index, test_index) in enumerate(skf.split(x.cpu().detach().numpy(),
+                                                               y.argmax(dim=1).cpu().detach().numpy())):
             
             # print(x)
 
             # x = x.cpu()
 
             # print(x)
-            x = x.to(torch.device("cpu"))
-            y = y.float()
-            y = y.to(torch.device("cpu"))
-            y = one_hot(y.to(torch.int64)).to(torch.float)
+            # x = x.to(torch.device("cpu"))
+            # y = y.float()
+            # y = y.to(torch.device("cpu"))
+            # y = one_hot(y.to(torch.int64)).to(torch.float)
 
             print(x.shape)
             print(y, y.shape)
@@ -155,7 +169,8 @@ class Scorer:
                 n_used_concepts = sum(model.model[0].concept_mask[j] > 0.5)
                 print(f"Extracted concepts: {n_used_concepts}")
             results, f = model.explain_class(val_loader, train_loader, test_loader,
-                                            topk_explanations=10)
+                                            topk_explanations=10,
+                                            concept_names=self.concept_names)
             end = time.time() - start
             results['model_accuracy'] = model_results[0]['test_acc']
             results['extraction_time'] = end
@@ -177,51 +192,140 @@ class Scorer:
             results['extracted_concepts'] = np.mean(extracted_concepts)
             results['common_concepts_ratio'] = sum(common_concepts) / sum(all_concepts)
 
-            break
-
             # compare against standard feature selection
-            # i_mutual_info = mutual_info_classif(x_trainval, y_trainval[:, 1])
-            # i_chi2 = chi2(x_trainval, y_trainval[:, 1])[0]
-            # i_chi2[np.isnan(i_chi2)] = 0
-            # lasso = LassoCV(cv=5, random_state=0).fit(x_trainval, y_trainval[:, 1])
-            # i_lasso = np.abs(lasso.coef_)
-            # i_mu = model.model[0].concept_mask[1]
-            # df = pd.DataFrame(np.hstack([
-            #     i_mu.numpy(),
-            #     i_mutual_info / np.max(i_mutual_info),
-            #     i_chi2 / np.max(i_chi2),
-            #     i_lasso / np.max(i_lasso),
-            # ]).T, columns=['feature importance'])
-            # df['method'] = 'explainer'
+            i_mutual_info = mutual_info_classif(x_trainval, y_trainval[:, 1])
+            i_chi2 = chi2(x_trainval, y_trainval[:, 1])[0]
+            i_chi2[np.isnan(i_chi2)] = 0
+            lasso = LassoCV(cv=5, random_state=0).fit(x_trainval, y_trainval[:, 1])
+            i_lasso = np.abs(lasso.coef_)
+            i_mu = model.model[0].concept_mask[1]
+            print(model.model[0].concept_mask)
+            df = pd.DataFrame(np.hstack([
+                i_mu.numpy(),
+                # i_mutual_info / np.max(i_mutual_info),
+                # i_chi2 / np.max(i_chi2),
+                # i_lasso / np.max(i_lasso),
+            ]).T, columns=['feature importance'])
+            df['method'] = 'explainer'
             # df.iloc[90:, 1] = 'MI'
             # df.iloc[180:, 1] = 'CHI2'
             # df.iloc[270:, 1] = 'Lasso'
-            # df['feature'] = np.hstack([np.arange(0, 90)] * 4)
-            # feature_selection.append(df)
+            df['feature'] = np.hstack([np.arange(0, n_concepts)])
+            feature_selection.append(df)
+
+            break
 
 
 
-    def explain(self, class_target):
+        self.feature_selection = feature_selection
+        # print(self.feature_selection)
 
-        print("Explaining class: ", class_target)
+        self.df = df
+        self.explanations = explanations
+        self.results_list = results_list
 
-        if self.x_train == None or self.y_train == None or self.model == None:
-            raise Exception("Model not trained")
 
-        self.x_train.cpu()
-        self.y_train.cpu()
-        self.model.cpu()
 
-        y1h = one_hot(self.y_train.cpu())
+    def explain(self):
 
-        explanation, _ = entropy.explain_class(self.model.cpu(), self.x_train.cpu(), y1h, self.x_train.cpu(), y1h, target_class=class_target)
+        # print("Explaining class: ", class_target)
 
-        # print(model(x_train[0]))
+        # if self.x_train == None or self.y_train == None or self.model == None:
+        #     raise Exception("Model not trained")
 
-        accuracy, preds = test_explanation(explanation, self.x_train, y1h, target_class=class_target)
-        explanation_complexity = complexity(explanation)
+        # self.x_train.cpu()
+        # self.y_train.cpu()
+        # self.model.cpu()
 
-        return [explanation, explanation_complexity, accuracy, preds]
+        # y1h = one_hot(self.y_train.cpu())
+
+        # explanation, _ = entropy.explain_class(self.model.cpu(), self.x_train.cpu(), y1h, self.x_train.cpu(), y1h, target_class=class_target)
+
+        # # print(model(x_train[0]))
+
+        # accuracy, preds = test_explanation(explanation, self.x_train, y1h, target_class=class_target)
+        # explanation_complexity = complexity(explanation)
+
+        # return [explanation, explanation_complexity, accuracy, preds]
+
+        base_dir = f'./results/mimicLEN/explainer'
+
+        consistencies = []
+        for j in range(self.n_classes):
+            if self.explanations[j][0] is None:
+                continue
+            consistencies.append(formula_consistency(self.explanations[j]))
+        explanation_consistency = np.mean(consistencies)
+
+        feature_selection = pd.concat(self.feature_selection, axis=0)
+
+        f1 = feature_selection[feature_selection['feature'] <= self.n_concepts//3]
+        f2 = feature_selection[(feature_selection['feature'] > self.n_concepts//3) & (feature_selection['feature'] <= (self.n_concepts*2)//3)]
+        f3 = feature_selection[feature_selection['feature'] > (self.n_concepts*2)//3]
+
+        plt.figure(figsize=[10, 10])
+        plt.subplot(1, 3, 1)
+        ax = sns.barplot(y=f1['feature'], x=f1.iloc[:, 0],
+                        hue=f1['method'], orient='h', errwidth=0.5, errcolor='k')
+        ax.get_legend().remove()
+        plt.subplot(1, 3, 2)
+        ax = sns.barplot(y=f2['feature'], x=f2.iloc[:, 0],
+                        hue=f2['method'], orient='h', errwidth=0.5, errcolor='k')
+        plt.xlabel('')
+        ax.get_legend().remove()
+        plt.subplot(1, 3, 3)
+        sns.barplot(y=f3['feature'], x=f3.iloc[:, 0],
+                    hue=f3['method'], orient='h', errwidth=0.5, errcolor='k')
+        plt.xlabel('')
+        plt.tight_layout()
+        plt.savefig(os.path.join(base_dir, 'barplot_mimic.png'))
+        plt.savefig(os.path.join(base_dir, 'barplot_mimic.pdf'))
+        plt.show()
+
+        print(feature_selection.iloc[:, 1], feature_selection.iloc[:, 0])
+
+        # plt.figure(figsize=[6, 4])
+        # sns.boxplot(x=feature_selection.iloc[:, 1], y=feature_selection.iloc[:, 0])
+        # plt.tight_layout()
+        # plt.savefig(os.path.join(base_dir, 'boxplot_mimic.png'))
+        # plt.savefig(os.path.join(base_dir, 'boxplot_mimic.pdf'))
+        # plt.show()
+
+
+        results_df = pd.DataFrame(self.results_list)
+        results_df['explanation_consistency'] = explanation_consistency
+        results_df.to_csv(os.path.join(base_dir, 'results_aware_mimic.csv'))
+        results_df
+
+
+        results_df.mean()
+
+        results_df.sem()
+
+        x = self.data
+        y = self.target
+
+        dt_scores, rf_scores = [], []
+        for split, (trainval_index, test_index) in enumerate(
+                self.skf.split(x.cpu().detach().numpy(), y.argmax(dim=1).cpu().detach().numpy())):
+            print(f'Split [{split + 1}/{self.n_splits}]')
+            x_trainval, x_test = x[trainval_index], x[test_index]
+            y_trainval, y_test = y[trainval_index].argmax(dim=1), y[test_index].argmax(dim=1)
+
+            dt_model = DecisionTreeClassifier(max_depth=5, random_state=split)
+            dt_model.fit(x_trainval, y_trainval)
+            dt_scores.append(dt_model.score(x_test, y_test))
+
+            rf_model = RandomForestClassifier(random_state=split)
+            rf_model.fit(x_trainval, y_trainval)
+            rf_scores.append(rf_model.score(x_test, y_test))
+
+        print(f'Random forest scores: {np.mean(rf_scores)} (+/- {np.std(rf_scores)})')
+        print(f'Decision tree scores: {np.mean(dt_scores)} (+/- {np.std(dt_scores)})')
+        print(f'Mu net scores (model): {results_df["model_accuracy"].mean()} (+/- {results_df["model_accuracy"].std()})')
+        print(
+            f'Mu net scores (exp): {results_df["explanation_accuracy"].mean()} (+/- {results_df["explanation_accuracy"].std()})')
+
 
 
 
