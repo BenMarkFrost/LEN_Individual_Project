@@ -97,8 +97,11 @@ class Scorer:
         n_concepts = next(iter(train_loader))[0].shape[1]
         self.n_concepts = n_concepts
 
-        n_classes = len(np.unique(self.target))
+
+        n_classes = self.target.shape[1]
         self.n_classes = n_classes
+
+        print("Training on {} classes".format(n_classes))
 
         print("Num concepts: {}".format(n_concepts))
         print("Num classes: {}".format(n_classes))
@@ -108,7 +111,7 @@ class Scorer:
 
         seed_everything(40)
 
-        n_splits = 5
+        n_splits = 4
 
         self.n_splits = n_splits
 
@@ -136,8 +139,8 @@ class Scorer:
             # y = y.to(torch.device("cpu"))
             # y = one_hot(y.to(torch.int64)).to(torch.float)
 
-            print(x.shape)
-            print(y, y.shape)
+            # print(x.shape)
+            # print(y, y.shape)
 
 
             print(f'Split [{split + 1}/{n_splits}]')
@@ -164,14 +167,15 @@ class Scorer:
             trainer.fit(model, train_loader, val_loader)
             print(f"Gamma: {model.model[0].concept_mask}")
             model.freeze()
+            print("\nTesting...\n")
             model_results = trainer.test(model, test_dataloaders=test_loader)
-            for j in range(n_classes):
-                n_used_concepts = sum(model.model[0].concept_mask[j] > 0.5)
-                print(f"Extracted concepts: {n_used_concepts}")
+            print("Testing results: ", model_results)
+            print("\nExplaining\n")
             results, f = model.explain_class(val_loader, train_loader, test_loader,
                                             topk_explanations=10,
                                             concept_names=self.concept_names)
             end = time.time() - start
+            print(f"Explaining time: {end - start}")
             results['model_accuracy'] = model_results[0]['test_acc']
             results['extraction_time'] = end
 
@@ -180,9 +184,10 @@ class Scorer:
             all_concepts = model.model[0].concept_mask[0] > 0.5
             common_concepts = model.model[0].concept_mask[0] > 0.5
             for j in range(n_classes):
+                # print(f[j]['explanation'])
                 n_used_concepts = sum(model.model[0].concept_mask[j] > 0.5)
-                print(f"Extracted concepts: {n_used_concepts}")
-                print(f"Explanation: {f[j]['explanation']}")
+                print(f"Number of features that impact on target {j}: {n_used_concepts}")
+                print(f"Explanation for target {j}: {f[j]['explanation']}")
                 print(f"Explanation accuracy: {f[j]['explanation_accuracy']}")
                 explanations[j].append(f[j]['explanation'])
                 extracted_concepts.append(n_used_concepts)
@@ -199,7 +204,7 @@ class Scorer:
             lasso = LassoCV(cv=5, random_state=0).fit(x_trainval, y_trainval[:, 1])
             i_lasso = np.abs(lasso.coef_)
             i_mu = model.model[0].concept_mask[1]
-            print(model.model[0].concept_mask)
+            # print(model.model[0].concept_mask)
             df = pd.DataFrame(np.hstack([
                 i_mu.numpy(),
                 # i_mutual_info / np.max(i_mutual_info),
@@ -212,8 +217,6 @@ class Scorer:
             # df.iloc[270:, 1] = 'Lasso'
             df['feature'] = np.hstack([np.arange(0, n_concepts)])
             feature_selection.append(df)
-
-            break
 
 
 
@@ -251,6 +254,7 @@ class Scorer:
         base_dir = f'./results/mimicLEN/explainer'
 
         consistencies = []
+        print(self.explanations)
         for j in range(self.n_classes):
             if self.explanations[j][0] is None:
                 continue
@@ -258,6 +262,8 @@ class Scorer:
         explanation_consistency = np.mean(consistencies)
 
         feature_selection = pd.concat(self.feature_selection, axis=0)
+
+        print("Feature selection: ", feature_selection)
 
         f1 = feature_selection[feature_selection['feature'] <= self.n_concepts//3]
         f2 = feature_selection[(feature_selection['feature'] > self.n_concepts//3) & (feature_selection['feature'] <= (self.n_concepts*2)//3)]
@@ -282,7 +288,7 @@ class Scorer:
         plt.savefig(os.path.join(base_dir, 'barplot_mimic.pdf'))
         plt.show()
 
-        print(feature_selection.iloc[:, 1], feature_selection.iloc[:, 0])
+        # print(feature_selection.iloc[:, 1], feature_selection.iloc[:, 0])
 
         # plt.figure(figsize=[6, 4])
         # sns.boxplot(x=feature_selection.iloc[:, 1], y=feature_selection.iloc[:, 0])

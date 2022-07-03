@@ -61,7 +61,9 @@ class Categorizer:
 
         return kBinsDF
 
+
     def kMeans(self, n_clusters):
+
 
         kMeansDF = self.data.apply(lambda x: KMeans(n_clusters=n_clusters, random_state=0).fit_predict(np.asarray(x).reshape(-1,1)))
 
@@ -71,6 +73,7 @@ class Categorizer:
 
         return kMeansDF
     
+
     def agglomerative(self, n_clusters):
 
         agglomerativeDF = self.data.apply(lambda x: AgglomerativeClustering(n_clusters=n_clusters).fit_predict(np.asarray(x).reshape(-1,1)))
@@ -81,6 +84,7 @@ class Categorizer:
 
         return agglomerativeDF
     
+
     def display(self, num=None):
 
         for type in self.categorizationTypes:
