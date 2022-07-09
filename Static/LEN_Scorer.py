@@ -23,6 +23,9 @@ import os
 from matplotlib import pyplot as plt
 import seaborn as sns
 import time
+from torchmetrics.functional import precision_recall
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+
 
 
 """ The model code from this file is adapted from the following:
@@ -41,7 +44,7 @@ class Scorer:
         self.concept_names = concept_names
         
 
-    def train(self):
+    def train(self, layer_complexity=[20]):
         # x_train = torch.tensor(self.data, dtype=torch.float, device = self.cuda)
         # y_train = torch.tensor(self.target, dtype=torch.long, device = self.cuda)
 
@@ -111,7 +114,7 @@ class Scorer:
 
         seed_everything(40)
 
-        n_splits = 4
+        n_splits = 2
 
         self.n_splits = n_splits
 
@@ -157,11 +160,15 @@ class Scorer:
             test_loader = DataLoader(test_data, batch_size=test_size)
 
             checkpoint_callback = ModelCheckpoint(dirpath=base_dir, monitor='val_loss', save_top_k=1)
+
+            # Constructs the way that the model will be trained
             trainer = Trainer(max_epochs=200, gpus=1, auto_lr_find=True, deterministic=True,
                             check_val_every_n_epoch=1, default_root_dir=base_dir,
                             weights_save_path=base_dir, callbacks=[checkpoint_callback])
+
+            # This is the model itself, which is extended from pytorch_lightning
             model = Explainer(n_concepts=n_concepts, n_classes=n_classes, l1=1e-3, lr=0.01,
-                            explainer_hidden=[20], temperature=0.7)
+                            explainer_hidden=layer_complexity, temperature=0.7)
 
             start = time.time()
             trainer.fit(model, train_loader, val_loader)
@@ -174,7 +181,7 @@ class Scorer:
             results, f = model.explain_class(val_loader, train_loader, test_loader,
                                             topk_explanations=10,
                                             concept_names=self.concept_names)
-            end = time.time() - start
+            end = time.time()
             print(f"Explaining time: {end - start}")
             results['model_accuracy'] = model_results[0]['test_acc']
             results['extraction_time'] = end
@@ -196,6 +203,18 @@ class Scorer:
 
             results['extracted_concepts'] = np.mean(extracted_concepts)
             results['common_concepts_ratio'] = sum(common_concepts) / sum(all_concepts)
+
+            # Precision, Recall, F1
+            print(x_test)
+            print("Type:", type(x_test))
+            y_pred = torch.argmax(model(x_test), axis=1)
+            print("Predictions:", y_pred)
+            y_test_argmax = torch.argmax(y_test, axis=1)
+            print("Actual:", y_test_argmax)
+
+            prec_rec = precision_recall(y_pred, y_test_argmax, num_classes = n_classes)
+
+            print(prec_rec)
 
             # compare against standard feature selection
             i_mutual_info = mutual_info_classif(x_trainval, y_trainval[:, 1])
@@ -226,6 +245,8 @@ class Scorer:
         self.df = df
         self.explanations = explanations
         self.results_list = results_list
+
+        return y_pred, y_test_argmax
 
 
 
