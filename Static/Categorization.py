@@ -14,11 +14,19 @@ class Categorizer:
         self.categorizationTypes = {}
         self.mappedTypes = {}
 
-    def map_types(self, mapping):
+    def __init__(self):
+        self.data = {}
+        self.categorizationTypes = {}
+        self.mappedTypes = {}
 
-        for type in self.categorizationTypes:
+    def map_types(self, data = None, mapping={0: 'very_low', 1: 'low', 2: 'medium', 3: 'high', 4: 'very_high'}):
 
-            df = self.categorizationTypes[type]
+        if data is None:
+            data = self.categorizationTypes
+            
+        for type in data:
+
+            df = data[type]
 
             for col in df.columns:
 
