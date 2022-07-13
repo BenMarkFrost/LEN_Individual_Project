@@ -5,19 +5,16 @@ from sklearn.cluster import KMeans
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 
 class Categorizer:
 
-    def __init__(self, data):
+    def __init__(self, data={}):
         self.data = data
         self.categorizationTypes = {}
         self.mappedTypes = {}
 
-    def __init__(self):
-        self.data = {}
-        self.categorizationTypes = {}
-        self.mappedTypes = {}
 
     def map_types(self, data = None, mapping={0: 'very_low', 1: 'low', 2: 'medium', 3: 'high', 4: 'very_high'}):
 
@@ -26,7 +23,7 @@ class Categorizer:
             
         for type in data:
 
-            df = data[type]
+            df = copy.copy(data[type])
 
             for col in df.columns:
 

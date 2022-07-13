@@ -38,8 +38,12 @@ class Scorer:
     """Runs categorised static data on a standard LEN network, and outputs the result."""
 
     def __init__(self, data, target, concept_names):
-        self.data = data
-        self.target = target
+
+        xTensor = torch.FloatTensor(data)
+        yTensor = one_hot(torch.tensor(target).to(torch.long)).to(torch.float)
+
+        self.data = xTensor
+        self.target = yTensor
         self.cuda = torch.device('cuda')
         self.concept_names = concept_names
         
