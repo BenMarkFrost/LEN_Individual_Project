@@ -55,37 +55,6 @@ class Scorer:
         x_train = self.data
         y_train = self.target
 
-        # print(x_train)
-        # print(y_train)
-
-        # layers = [
-        #     te.nn.EntropyLinear(x_train.shape[1], 10, n_classes=4),
-        #     torch.nn.LeakyReLU(),
-        #     torch.nn.Linear(10, 4),
-        #     torch.nn.LeakyReLU(),
-        #     torch.nn.Linear(4, 1),
-        # ]
-
-
-        # model = torch.nn.Sequential(*layers)
-
-
-        # optimizer = torch.optim.AdamW(model.parameters(), lr=0.01)
-        # loss_form = torch.nn.CrossEntropyLoss()
-        # model.to(device=self.cuda)
-        # model.train()
-        # for _ in range(1001):
-        #     optimizer.zero_grad()
-        #     y_pred = model(x_train.to(device=self.cuda)).squeeze(-1)
-        #     # print(y_pred, y_train)
-        #     loss = loss_form(y_pred, y_train)
-        #     loss = loss_form(y_pred, y_train) + 0.00001 * te.nn.functional.entropy_logic_loss(model)
-        #     print(loss)
-        #     loss.backward()
-
-        #     clip_grad_norm_(model.parameters(), 5)
-
-        #     optimizer.step()
 
         dataset = TensorDataset(x_train, y_train)
         train_size = int(0.8 * len(dataset))
