@@ -1,0 +1,2 @@
+file,model_accuracy,extraction_time,f1,recall,precision,target_class_0,explanation_accuracy_0,explanation_fidelity_0,explanation_complexity_0,target_class_1,explanation_accuracy_1,explanation_fidelity_1,explanation_complexity_1
+staticDataSimple.csv,0.732889711856842,270.0522549152374,0.5797856083834769,0.6351670099761703,0.5770608823800313,0.0,0.4393528594065987,0.6682509505703422,7.0,1.0,0.5106361579079709,0.7480988593155894,29.0

@@ -120,7 +120,7 @@ class TemporalHelper:
 
         patientsKeptDF = patientsKeptDF.set_index('n_col')
 
-        fig = plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=(10, 6), dpi=200)
 
         plt.xticks(patientsKeptDF.iloc[:,0].index)
         plt.xlabel("n-columns to keep")

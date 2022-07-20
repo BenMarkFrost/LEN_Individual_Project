@@ -16,7 +16,7 @@ class Categorizer:
         self.mappedTypes = {}
 
 
-    def map_types(self, data = None, mapping={0: 'very_low', 1: 'low', 2: 'medium', 3: 'high', 4: 'very_high'}):
+    def map_types(self, data = None, mapping = {0: 'very_low', 1: 'low', 2: 'medium', 3: 'high', 4: 'very_high'}):
 
         if data is None:
             data = self.categorizationTypes
@@ -27,7 +27,32 @@ class Categorizer:
 
             for col in df.columns:
 
-                df[col] = df[col].map(mapping)
+                newMapping = mapping
+
+                # print(len(np.unique(df[col])), len(list(mapping.keys())))
+
+                if len(np.unique(df[col])) == 2:
+
+                    newMapping = {0: 'low', 1: 'high'}
+
+                elif len(np.unique(df[col])) < len(list(mapping.keys())):
+                   
+                    print("got here")
+
+                    newMapping = dict(list(mapping.items())[len(np.unique(df[col]))//2:(len(np.unique(df[col])) + len(np.unique(df[col])) // 2)])
+
+                    fixedMapping = {}
+
+                    count = 0
+                    for i in newMapping:
+                        fixedMapping[count] = newMapping[i]
+                        count += 1
+
+                    newMapping = fixedMapping
+
+                    # print(newMapping)
+
+                df[col] = df[col].map(newMapping)
 
             self.mappedTypes[type] = pd.get_dummies(df)
 
