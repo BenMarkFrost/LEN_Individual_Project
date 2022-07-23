@@ -37,8 +37,6 @@ class Categorizer:
 
                 elif len(np.unique(df[col])) < len(list(mapping.keys())):
                    
-                    print("got here")
-
                     newMapping = dict(list(mapping.items())[len(np.unique(df[col]))//2:(len(np.unique(df[col])) + len(np.unique(df[col])) // 2)])
 
                     fixedMapping = {}
