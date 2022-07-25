@@ -1,2 +1,0 @@
-file,model_accuracy,extraction_time,target_class_0,explanation_0,explanation_accuracy_0,explanation_fidelity_0,explanation_complexity_0,target_class_1,explanation_1,explanation_accuracy_1,explanation_fidelity_1,explanation_complexity_1
-clusteredData.csv,0.9375,50.87662196159363,0,SVRI_Mean_medium | ~CVP_StdDev_high,0.6315452800877273,0.9114583333333334,2,1,~Arterial BP [Diastolic]_Mean_very_low & ~Arterial PaCO2_Mean_high & ~Arterial PaO2_Mean_medium & ~Hemoglobin_Mean_very_low & ~Platelets_Mean_high,0.4282310899344849,0.59375,5
