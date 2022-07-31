@@ -167,4 +167,32 @@ class Categorizer:
                     plt.show()
 
 
+
+    
+    def getBoundaries(self):
+
+        boundaries = {}
+
+        for type in self.categorizationTypes:
+
+            df = self.categorizationTypes[type]
+
+            boundaries[type] = {}
+
+            for col in df.columns:
+
+                tempDF = pd.DataFrame(data=[df[col].values, self.data[col].values]).T
+
+                tempDF = tempDF.sort_values(by=1)
+
+                tempDF = tempDF.reset_index()
+
+                boundaries[type][col] = []
+
+                for i in list(tempDF[0].unique())[1:]:
+                    boundaries[type][col].append(tempDF[1].iloc[tempDF[0][tempDF[0] == i].index[0]])
+
+        return boundaries
+
+
             
