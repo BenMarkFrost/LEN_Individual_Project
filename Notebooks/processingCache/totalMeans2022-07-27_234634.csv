@@ -1,0 +1,2 @@
+file,model_acc,extraction_time,f1,recall,precision,expl_acc_0,expl_fidelity_0,expl_comp_0,expl_acc_1,expl_fidelity_1,expl_comp_1
+staticData.csv,0.8,141.07,0.56,0.56,0.57,0.5,0.73,1.2,0.3,0.4,1.2

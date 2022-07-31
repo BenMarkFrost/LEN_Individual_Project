@@ -1,0 +1,2 @@
+file,model_acc,extraction_time,f1,recall,precision,expl_acc_0,expl_fidelity_0,expl_comp_0,expl_acc_1,expl_fidelity_1,expl_comp_1
+breastCancer.csv,0.97,20.61,0.96,0.96,0.96,0.7679052514561749,0.788540596094553,2.5,0.6027302707262827,0.7285714285714285,1.0

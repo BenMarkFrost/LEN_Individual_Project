@@ -6,11 +6,13 @@ from matplotlib import pyplot as plt
 
 class Patient:
 
-    def __init__(self, patientID, mortality, data):
+    def __init__(self, patientID, label, data, static=None):
         self.patientID = patientID
         self.data = data
         self.interpolatedData = pd.DataFrame()
-        self.mortality = mortality
+        self.label = label
+        if static is not None:
+            self.static=static
 
 
     def __repr__(self):
@@ -27,21 +29,28 @@ class TemporalHelper:
     @lru_cache()
     def get_mimic(self):
 
-        self.mimicDF = pd.read_csv("../LEN_Test/data/TimeSeries.csv")
+        self.DF = pd.read_csv("../LEN_Test/data/TimeSeries.csv")
 
-        return self.mimicDF
+        return self.DF
 
-    def get_patients(self, dataFrame=None):
+    # Max size is 2 since this output can be large.
+    # @lru_cache(maxsize=2)
+    def get_patients(self, dataFrame=None, by="PatientID", label="Mortality14Days", static=None):
 
         patients = []
 
         if dataFrame is None:
             dataFrame = self.get_mimic()
 
-        for id in dataFrame['PatientID'].unique():
-            patientDF = dataFrame[dataFrame['PatientID'] == id].reset_index().drop(columns=['PatientID', 'index', 'Mortality14Days'])
-            mortality = dataFrame[dataFrame['PatientID'] == id]['Mortality14Days'].max()
-            patient = Patient(id, mortality, patientDF)
+        for id, df in tqdm(dataFrame.groupby(by)):
+            if static is not None:
+                staticDF = df[static]
+                df = df.drop(static, axis=1)
+            else:
+                staticDF = None
+            patientDF = df.reset_index().drop(columns=[by, 'index', label])
+            mortality = df[label].max()
+            patient = Patient(id, mortality, patientDF, staticDF)
             patients.append(patient)
 
         self.patients = patients
@@ -55,16 +64,20 @@ class TemporalHelper:
 
         nullCount = {}
 
-        for patient in patients:
+        print("[1/4] Counting null values...")
+
+        for patient in tqdm(patients):
+
+            nullCols = patient.data.isnull().all()
 
             for column in patient.data.columns:
 
-                if patient.data[column].isnull().all():
+                if nullCols[column]:
 
                     if column not in nullCount:
-                        nullCount[column] = int(patient.data[column].isnull().all())
+                        nullCount[column] = 1
                     else:
-                        nullCount[column] += int(patient.data[column].isnull().all())
+                        nullCount[column] += 1
 
         nullCount = dict(sorted(nullCount.items(), key=lambda item: item[1]))
 
@@ -85,7 +98,11 @@ class TemporalHelper:
 
         columnsExplored = list(nullCount.keys())
 
+        print("[2/3] Copying dataset...")
+
         tempPatients = [copy.copy(patient) for patient in patients]
+
+        print("[3/4] Dropping null columns...")
 
         for i in tqdm(range(len(columnsExplored))):
 
@@ -114,13 +131,15 @@ class TemporalHelper:
             numPatientsKept.append(len(nonNullPatients))
 
 
+        print("[4/4] Graphing...")
+
         patientsKeptDF = pd.DataFrame(data=numPatientsKept)
 
         patientsKeptDF['n_col'] =list(range(1, len(patientsKeptDF)+1))
 
         patientsKeptDF = patientsKeptDF.set_index('n_col')
 
-        fig = plt.figure(figsize=(10, 6), dpi=200)
+        fig = plt.figure(figsize=(10, 6), dpi=100)
 
         plt.xticks(patientsKeptDF.iloc[:,0].index)
         plt.xlabel("n-columns to keep")
@@ -144,7 +163,7 @@ class TemporalHelper:
         clusteringPatients = []
         ids = set(self.patientsKept[columns-1])
 
-        for patient in patients:
+        for patient in tqdm(patients):
             if patient.patientID in ids:
                 patient.topColumns = patient.data[self.columnsExplored[:columns]]
                 clusteringPatients.append(patient)

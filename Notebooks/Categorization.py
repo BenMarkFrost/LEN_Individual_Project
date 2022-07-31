@@ -80,9 +80,9 @@ class Categorizer:
         return data
 
 
-    def kBins(self, bins):
+    def kBins(self, bins, strategy='uniform'):
 
-        est = KBinsDiscretizer(n_bins=bins, encode='ordinal', strategy='uniform')
+        est = KBinsDiscretizer(n_bins=bins, encode='ordinal', strategy=strategy)
         kBinsDF = pd.DataFrame(data=est.fit_transform(self.data), columns=self.data.columns)
 
         self.categorizationTypes['kBins'] = kBinsDF
@@ -113,7 +113,24 @@ class Categorizer:
         return agglomerativeDF
     
 
-    def display(self, num=None):
+    def plotData(self, col, df, target):
+        
+        score = np.round(silhouette_score(np.asarray(self.data[col]).reshape(-1,1), df[col]), 2)
+
+        tempData = copy.copy(self.data[[col]])
+
+        tempData['cluster'] = df[col]
+        tempData['target'] = target
+
+        for _, data in tempData.groupby("target"):
+
+            plt.scatter(data[col], data[col].map(self.data[col].value_counts()), c=data['cluster'], marker=data['target'].map({0: 'o', 1: 'x'}).iloc[0])
+            plt.xlabel("Value")
+            plt.ylabel("Frequency")
+            plt.title(f"{col}, score: {score}")
+
+
+    def display(self, num=None, target="o"):
 
         for type in self.categorizationTypes:
 
@@ -125,18 +142,13 @@ class Categorizer:
 
                 fig = plt.figure(figsize=(10,6), dpi=100)
 
-                fig.suptitle(f"{type}")
+                fig.suptitle(f"{type}", fontsize=15)
 
 
                 for idx, col in enumerate(list(self.data.columns)[:max]):
 
-                    score = silhouette_score(np.asarray(self.data[col]).reshape(-1,1), df[col])
-
                     plt.subplot(int(len(self.data.columns)/2), int(len(self.data.columns)/2), idx+1)
-                    plt.scatter(self.data[col], self.data[col].map(self.data[col].value_counts()), c=df[col])
-                    plt.xlabel("Value")
-                    plt.ylabel("Frequency")
-                    plt.title(f"{col}, score: {score}")
+                    self.plotData(col, df, target)
             
                 plt.tight_layout()
                 plt.show()
@@ -149,12 +161,7 @@ class Categorizer:
 
                     fig.suptitle(f"{type}")
 
-                    score = silhouette_score(np.asarray(self.data[col]).reshape(-1,1), df[col])
-
-                    plt.scatter(self.data[col], self.data[col].map(self.data[col].value_counts()), c=df[col])
-                    plt.xlabel("Value")
-                    plt.ylabel("Frequency")
-                    plt.title(f"{col}, score: {score}")
+                    self.plotData(col, df, target)
 
                     plt.tight_layout()
                     plt.show()
