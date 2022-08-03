@@ -6,6 +6,8 @@ from matplotlib import pyplot as plt
 
 class Patient:
 
+    """ This class was created to store data relating to an individual patient."""
+
     def __init__(self, patientID, label, data, static=None):
         self.patientID = patientID
         self.data = data
@@ -23,19 +25,23 @@ class Patient:
 
 class TemporalHelper:
 
+    """ This calss contains methods for loading and preprocessing the MIMIC data. """
+
     def __init__(self):
         pass
 
     @lru_cache()
     def get_mimic(self):
 
+        """ Loads in the MIMIC time series data"""
+
         self.DF = pd.read_csv("../LEN_Test/data/TimeSeries.csv")
 
         return self.DF
 
-    # Max size is 2 since this output can be large.
-    # @lru_cache(maxsize=2)
     def get_patients(self, dataFrame=None, by="PatientID", label="Mortality14Days", static=None):
+        
+        """ Formats the mimic data so that it is separated into patients. """
 
         patients = []
 
@@ -58,6 +64,8 @@ class TemporalHelper:
         return patients
 
     def get_null_count(self, patients=None):
+
+        """ Returns a dictionary of the number of null values in each column. """
 
         if patients is None:
             patients = self.patients
@@ -85,6 +93,8 @@ class TemporalHelper:
 
 
     def count_null(self, patients=None):
+
+        """ Creates a graph of missingness and a list of patientIDs for each n-populated columns"""
 
         if patients is None:
             patients = self.patients
@@ -156,6 +166,8 @@ class TemporalHelper:
 
 
     def get_top_columns(self, patients=None, columns=12):
+
+        """ Returns a list of patients with data in the n most populated columns. """
 
         if patients is None:
             patients = self.patients
