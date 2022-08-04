@@ -1,0 +1,2 @@
+file,model_acc,f1,recall,precision,expl_acc_0,expl_fidelity_0,expl_comp_0,expl_acc_1,expl_fidelity_1,expl_comp_1
+clusteredData.csv,0.93,0.47,0.47,0.48,0.48,0.9,2.6,0.43,0.78,4.0

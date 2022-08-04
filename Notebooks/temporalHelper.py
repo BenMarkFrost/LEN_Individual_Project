@@ -25,7 +25,7 @@ class Patient:
 
 class TemporalHelper:
 
-    """ This calss contains methods for loading and preprocessing the MIMIC data. """
+    """ This class contains methods for loading and preprocessing the MIMIC data. """
 
     def __init__(self):
         pass

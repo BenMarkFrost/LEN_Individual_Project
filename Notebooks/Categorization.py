@@ -113,14 +113,14 @@ class Categorizer:
         return agglomerativeDF
     
 
-    def plotData(self, col, df, target):
+    def plotData(self, col, df):
         
         score = np.round(silhouette_score(np.asarray(self.data[col]).reshape(-1,1), df[col]), 2)
 
         tempData = copy.copy(self.data[[col]])
 
-        tempData['cluster'] = df[col]
-        tempData['target'] = target
+        tempData['cluster'] = df[col].values
+        tempData['target'] = df['target'].values
 
         for _, data in tempData.groupby("target"):
 
@@ -130,15 +130,20 @@ class Categorizer:
             plt.title(f"{col}, score: {score}")
 
 
-    def display(self, num=None, target="o"):
+    def display(self, num=None, target=None):
+
+        if target is None:
+            target = pd.Series(data=np.zeros((len(self.data))))
 
         for type in self.categorizationTypes:
 
-            df = self.categorizationTypes[type]
+            df = copy.copy(self.categorizationTypes[type])
+
+            df['target'] = target
 
             max = num if num is not None else len(df.columns)
 
-            if len(self.data.columns) < 6:
+            if max < 6:
 
                 fig = plt.figure(figsize=(10,6), dpi=100)
 
@@ -148,7 +153,7 @@ class Categorizer:
                 for idx, col in enumerate(list(self.data.columns)[:max]):
 
                     plt.subplot(int(len(self.data.columns)/2), int(len(self.data.columns)/2), idx+1)
-                    self.plotData(col, df, target)
+                    self.plotData(col, df)
             
                 plt.tight_layout()
                 plt.show()
@@ -161,7 +166,7 @@ class Categorizer:
 
                     fig.suptitle(f"{type}")
 
-                    self.plotData(col, df, target)
+                    self.plotData(col, df)
 
                     plt.tight_layout()
                     plt.show()
