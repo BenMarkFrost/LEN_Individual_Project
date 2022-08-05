@@ -10,12 +10,14 @@ import copy
 
 class Categorizer:
 
+    """ This class provides helper methods to be able to more easily categorize the data. """
     def __init__(self, data={}):
         self.data = data
         self.categorizationTypes = {}
         self.mappedTypes = {}
 
 
+    # Maps the ordered values to labels.
     def map_types(self, data = None, mapping = {0: 'very_low', 1: 'low', 2: 'medium', 3: 'high', 4: 'very_high'}):
 
         if data is None:
@@ -26,11 +28,10 @@ class Categorizer:
             df = copy.copy(data[type])
 
             for col in df.columns:
-
+                
+                # Updating the mapping dictionary if there are fewer than 5 categories.
                 newMapping = mapping
-
-                # print(len(np.unique(df[col])), len(list(mapping.keys())))
-
+                
                 if len(np.unique(df[col])) == 2:
 
                     newMapping = {0: 'low', 1: 'high'}
@@ -47,8 +48,6 @@ class Categorizer:
                         count += 1
 
                     newMapping = fixedMapping
-
-                    # print(newMapping)
 
                 df[col] = df[col].map(newMapping)
 
@@ -80,6 +79,7 @@ class Categorizer:
         return data
 
 
+    # K-Bins discretization interface.
     def kBins(self, bins, strategy='uniform'):
 
         est = KBinsDiscretizer(n_bins=bins, encode='ordinal', strategy=strategy)
@@ -89,7 +89,7 @@ class Categorizer:
 
         return kBinsDF
 
-
+    # K-Means clustering interface.
     def kMeans(self, n_clusters):
 
 
@@ -101,7 +101,7 @@ class Categorizer:
 
         return kMeansDF
     
-
+    # Agglomerative clustering interface.
     def agglomerative(self, n_clusters):
 
         agglomerativeDF = self.data.apply(lambda x: AgglomerativeClustering(n_clusters=n_clusters).fit_predict(np.asarray(x).reshape(-1,1)))
@@ -112,7 +112,7 @@ class Categorizer:
 
         return agglomerativeDF
     
-
+    # Plotting each column's categorization.
     def plotData(self, col, df):
         
         score = np.round(silhouette_score(np.asarray(self.data[col]).reshape(-1,1), df[col]), 2)
@@ -130,6 +130,7 @@ class Categorizer:
             plt.title(f"{col}, score: {score}")
 
 
+    # Controlling the display of each column's categorization.
     def display(self, num=None, target=None):
 
         if target is None:
@@ -173,7 +174,7 @@ class Categorizer:
 
 
 
-    
+    # Finds the boundaries between each category.
     def getBoundaries(self):
 
         boundaries = {}
